@@ -1,14 +1,45 @@
 var isochrone = {
-	mapId: '',
-	map: false,
+	map: {
+		id: '',
+		map: false,
+		zoom: 0,
+		lat: 0,
+		lng: 0
+	},
+	service: false,
+	ready: false,
+	debug: false,
+	computation: {
+		slices: 0,
+		cycles: 0,
+		lat: 0,
+		lng: 0,
+		time: 0,
+		distance: 0,
+		mode: '',
+		system: '',
+		callback: false,
+		points: []
+	},
+	log: function (text)
+	{
+		if (this.debug)
+		{
+			console.log(text);
+		}
+	},
 	load: function (parameters)
 	{
 		if ((typeof parameters.map) === 'undefined')
 		{
-			console.log('Missing map parameter');
+			this.log('Missing map parameter');
 			return false;
 		}
-		this.mapId = parameters.map;
+		this.map.id = parameters.map;
+		this.map.zoom = parameters.zoom || 14;
+		this.map.lat = parameters.lat || 48.858254;
+		this.map.lng = parameters.lng || 2.294563;
+		this.debug = parameters.debug || false;
 		if ((typeof parameters.key) !== 'undefined')
 		{
 			/* API's key provided => load the API */
@@ -25,10 +56,99 @@ var isochrone = {
 	},
 	init: function ()
 	{
-		this.map = new google.maps.Map(document.getElementById(this.mapId), {
-			zoom: 12,
-			center: {lat: 48.8589507, lng: 2.2770205}
+		this.map.map = new google.maps.Map(document.getElementById(this.map.id), {
+			zoom: this.map.zoom,
+			center: {
+				lat: this.map.lat,
+				lng: this.map.lng
+			}
 		});
+		this.service = new google.maps.DistanceMatrixService();
+		this.ready = true;
+	},
+	compute: function (parameters)
+	{
+		if (!this.ready)
+		{
+			this.log('Not ready, call init() or wait for init to be callbacked');
+			return false;
+		}
+		this.computation.slices = parseInt(parameters.slices || 8);
+		if (this.computation.slices < 2 || this.computation.slices > 25)
+		{
+			this.log('Wrong value for slices: between 2 and 25');
+			return false;
+		}
+		this.computation.cycles = parseInt(parameters.cycles || 10);
+		if (this.computation.cycles < 2 || this.computation.cycles > 50)
+		{
+			this.log('Wrong value for cycles: between 2 and 50');
+			return false;
+		}
+		if (!parameters.lat || !parameters.lng)
+		{
+			this.log('Missing lat and lng parameters');
+			return false;
+		}
+		this.computation.lat = parameters.lat;
+		this.computation.lng = parameters.lng;
+		if (!parameters.callback)
+		{
+			this.log('Missing callback');
+			return false;
+		}
+		this.computation.callback = parameters.callback;
+		if (!parameters.mode || !parameters.mode.match(/^(walking|bicycling|driving|transit)$/))
+		{
+			this.log('Missing mode or invalid mode');
+			return false;
+		}
+		this.computation.mode = parameters.mode.toUpperCase();
+		if (!parameters.time && !parameters.distance)
+		{
+			this.log('Missing either time or distance');
+			return false;
+		}
+		this.computation.time = parseInt(parameters.time || 0);
+		this.computation.distance = parseFloat(parameters.distance || 0);
+		if (this.computation.time && this.computation.distance)
+		{
+			this.log('Both time and distance are set');
+			return false;
+		}
+		this.computation.system = parameters.system && parameters.system === 'imperial' ? google.maps.UnitSystem.IMPERIAL : google.maps.UnitSystem.METRIC;
+
+		/* Cut the circle in «slices» */
+		new google.maps.Marker({position: {lat: this.computation.lat, lng: this.computation.lng}, map: this.map.map});
+		var radians,
+				latitude,
+				longitude,
+				delta = 0.01,
+				destinations = [];
+		for (var s = 0; s < this.computation.slices; s++)
+		{
+			radians = 2 * Math.PI * s / this.computation.slices;
+			latitude = this.computation.lat + delta * Math.cos(radians);
+			longitude = this.computation.lng + delta * Math.sin(radians);
+			new google.maps.Marker({position: {lat: latitude, lng: longitude}, map: this.map.map});
+			destinations.push(new google.maps.LatLng(latitude, longitude));
+		}
+		this.service.getDistanceMatrix({
+			origins: [new google.maps.LatLng(this.computation.lat, this.computation.lng)],
+			destinations: destinations,
+			travelMode: this.computation.mode,
+			unitSystem: this.computation.system,
+		}, function (data, result)
+		{
+			if (result === 'OK' && data && data.rows)
+			{
+				console.log(data.rows);
+			}
+		});
+	},
+	addPolygon: function (points)
+	{
+
 	}
 };
 

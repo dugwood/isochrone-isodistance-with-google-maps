@@ -1,32 +1,67 @@
-# this is a first commit, nothing is working for now :-)
+# this is a work in progress, nothing is really working for now :-)
 # first functional release soon enough! Click on «Watch» in the upper right corner
 
 
 
 # Isochrone and Isodistance with Google Maps API
 
-Reboot of https://github.com/sandropaganotti-zz/isochrone-with-google-map for latest Google API
+Inspired by https://github.com/sandropaganotti-zz/isochrone-with-google-map and https://github.com/lydonchandra/isochrone-with-google-map
 
-Isochrone is a polygon representing how far you would go from a single point in every direction, following each road. It's the best way to find out where you should live if you want to be «at most 5 minutes away from a tube station».
-Isodistance is similar, but takes into account the median speed of roads (doesn't apply for pedestrian for example).
+Isochrone is a polygon representing how far you would go from a single point in every direction, following each road in a given timeframe. It's the best way to find out where you should live if you want to be «at most 5 minutes away from a tube station».
+Isodistance is similar, but ignores time taken for traveling. For example by car you would go faster on highways, but with isodistance highways and sidewalks are the same.
 
 - isochrone (same duration) or isodistance (same distance) library
-- polygon definition: number of points, number of tries
-- export polygons for future use (avoid computing everything every time)
+- polygon definition: number of slices, number of cycles to make the precision better
+- export polygons' points for future use (avoid computing everything every time)
+
+# Demo
+
+https://isochrone.dugwood.com/index.html
 
 # Documentation
 
-## Initialize
+## HTML Code
+```html
+<script type="text/javascript" src="isochrone.js"></script>
+<div id="theMap"></div>
+```
 
+## Initialize
 ```javascript
 isochrone.init({
-	map: 'theMap', // The HTML ID of your map (say <div id="theMap"></div>)
-	key: 'your-google-maps-api-key' // if not already loaded, please provide your Google Maps API key
+	map: 'theMap',
+	key: 'your-google-maps-api-key'
 });
 ```
+Parameters:
+ - map: (string) the HTML ID of your map
+ - key: (string) if not already loaded, please provide your Google Maps API key so that it's loaded automatically
+ - zoom: (integer) if key is provided: default zoom of the map
+ - lat: (float) if key is provided: default latitude of the map
+ - lng: (float) if key is provided: default longitude of the map
+ - debug: (boolean)	set to true if you want to see errors in the Debug Console, else it will fail silently
 
 ## Usage
-
 ```javascript
-isochrone.draw();
+isochrone.compute({
+	lat: 48.860901,
+	lng: 2.307405,
+	time: 10 * 60,
+	mode: 'walking',
+	callback: isochrone.addPolygon
+});
 ```
+Parameters:
+ - lat: (float) latitude of origin. Mandatory.
+ - lng: (float) longitude of origin. Mandatory.
+ - time: (integer) maximum time to reach another point, in seconds. Mandatory, exclusive with «distance».
+   - examples:
+     - 30 seconds: 30
+     - 10 minutes: 10 * 60 or 600
+     - 1 hour and a half: 1h * 60 * 60 + 30min * 60, or 1 * 3600 + 30 * 60, or 5400
+ - distance: (float) maximum distance to reach another point, in miles or kilometers (see «system»). Mandatory, exclusive with «time».
+ - mode: (string) mode used to rely the dots, either walking, bicycling, driving or transit. Mandatory.
+ - callback: (function) function to call with the final polygon values. Mandatory.
+ - system: (string) system to use, either 'imperial' (in miles) or 'metric' (in kilometers). Defaults to «metric» if omitted.
+ - slices: (integer) number of polygon slices to compute. 4 slices means testing N/E/S/W (polygon cut in 4), 8 means testing N/NE/E/SE/S/SW/W/NW (polygon cut in 8). Defaults to 8, best is probably 16, maximum is 25 (hard limit of Google API, as we request all directions in one call to limit usage).
+ - cycles: (integer) number of cycles to narrow the polygon down. The higher value, the better, but this will equals the number of API calls, so you may want to keep it low because of [API restrictions](https://developers.google.com/maps/documentation/javascript/distancematrix#UsageLimits) and to get faster results. Defaults to 10.

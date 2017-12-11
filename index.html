@@ -6,13 +6,27 @@
 		<link rel="stylesheet" href="./style.css"/>
 	</head>
 	<body>
-		<h3>Isochrone and isodistance demo with Google Maps API</h3>
+		<h3>Isochrone and isodistance demo with Google Maps API (<a href="https://github.com/dugwood/isochrone-isodistance-with-google-maps">Github Project</a>)</h3>
+		<a href="#" onclick="return testIsochrone({time: 5 * 60});">5 minutes on foot from the Eiffel Tower</a>
+		<a href="#" onclick="return testIsochrone({time: 10 * 60});">10 minutes on foot from the Eiffel Tower</a>
+		<a href="#" onclick="return testIsochrone({distance: 5});">5km on foot from the Eiffel Tower</a>
 		<div id="theMap"></div>
 		<script type="text/javascript">
 			isochrone.load({
 				map: 'theMap',
-				key: 'AIzaSyDg024r1hQ-9YU570Ms4iOGRC5QSX-z_Bo' // Do change the key: it won't work on your domain anyway :-)
+				key: 'AIzaSyDg024r1hQ-9YU570Ms4iOGRC5QSX-z_Bo', // Do change the key: it won't work on your domain anyway :-)
+				debug: true
 			});
+			function testIsochrone(parameters)
+			{
+				parameters = parameters || {time: 5 * 60};
+				parameters.lat = 48.858254;
+				parameters.lng = 2.294563;
+				parameters.mode = 'walking';
+				parameters.callback = isochrone.addPolygon;
+				isochrone.compute(parameters);
+			}
+			setTimeout(testIsochrone, 1000);
 		</script>
 	</body>
 </html>
