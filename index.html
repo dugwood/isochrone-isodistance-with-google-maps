@@ -1,0 +1,18 @@
+<!DOCTYPE html>
+<html>
+	<head>
+		<title>Generate an isochrone/isodistance with Google Maps API</title>
+		<script type="text/javascript" src="./isochrone.js"></script>
+		<link rel="stylesheet" href="./style.css"/>
+	</head>
+	<body>
+		<h3>Isochrone and isodistance demo with Google Maps API</h3>
+		<div id="theMap"></div>
+		<script type="text/javascript">
+			isochrone.load({
+				map: 'theMap',
+				key: 'AIzaSyDg024r1hQ-9YU570Ms4iOGRC5QSX-z_Bo' // Do change the key: it won't work on your domain anyway :-)
+			});
+		</script>
+	</body>
+</html>
