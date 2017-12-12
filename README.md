@@ -41,7 +41,7 @@ Parameters:
 isochrone.compute({
 	lat: 48.860901,
 	lng: 2.307405,
-	type: 'duration,
+	type: 'duration',
 	value: 10 * 60,
 	mode: 'walking',
 	callback: isochrone.addPolygon
@@ -52,7 +52,7 @@ Parameters:
  - lng: (float) longitude of origin. Mandatory.
  - type: (string) either 'distance' (isodistance) or 'duration' (isoduration). Mandatory.
  - value (float) maximum duration (in seconds) or distance (in miles or kilometers, see «system») to reach another point. Mandatory.
-   - examples for type=duration:
+   - examples for type «duration»:
      - 30 seconds: 30
      - 10 minutes: 10 * 60 or 600
      - 1 hour and a half: 1h * 60 * 60 + 30min * 60, or 1 * 3600 + 30 * 60, or 5400
@@ -61,3 +61,4 @@ Parameters:
  - system: (string) system to use, either 'imperial' (in miles) or 'metric' (in kilometers). Defaults to «metric» if omitted.
  - slices: (integer) number of polygon slices to compute. 4 slices means testing N/E/S/W (polygon cut in 4), 8 means testing N/NE/E/SE/S/SW/W/NW (polygon cut in 8). Defaults to 8, best is probably 16, maximum is 25 (hard limit of Google API, as we request all directions in one call to limit usage).
  - cycles: (integer) number of cycles to narrow the polygon down. The higher value, the better, but this will equals the number of API calls, so you may want to keep it low because of [API restrictions](https://developers.google.com/maps/documentation/javascript/distancematrix#UsageLimits) and to get faster results. Defaults to 10.
+ - precision: (integer) percentage of accepted error on the final position, limiting API calls. For example with 5%, an isochrone of 10 minutes (600 seconds) will accept (0.05 * 600 =) 30 seconds of error (so the path would be between 9'30" and 10'30"). Defaults to 5.

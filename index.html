@@ -3,32 +3,99 @@
 	<head>
 		<title>Generate an isochrone/isodistance with Google Maps API</title>
 		<script type="text/javascript" src="./isochrone.js"></script>
-		<link rel="stylesheet" href="./style.css"/>
+		<link href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-BVYiiSIFeK1dGmJRAkycuHAHRg32OmUcww7on3RYdg4Va+PmSTsz/K68vbdEjh4u" crossorigin="anonymous"/>
+		<style type="text/css">
+			#theMap {
+				width:100%;
+				height:600px;
+			}
+			#computing {
+				display:none;
+			}
+			.alert {
+				margin:0;
+			}
+		</style>
 	</head>
 	<body>
-		<h3>Isochrone and isodistance demo with Google Maps API (<a href="https://github.com/dugwood/isochrone-isodistance-with-google-maps">Github Project</a>)</h3>
-		From the Eiffel Tower: <a href="#" onclick="return testIsochrone({type: 'duration', value: 5 * 60});">5 minutes on foot</a>
-		<a href="#" onclick="return testIsochrone({type: 'duration', value: 10 * 60});">10 minutes on foot</a>
-		<a href="#" onclick="return testIsochrone({type: 'distance', value: 3});">3 kilometers (~2 miles) on foot</a>
-		<div id="theMap"></div>
+		<div class="container">
+			<div class="col-xs-12">
+				<h3>Isochrone and isodistance demo with Google Maps API (<a href="https://github.com/dugwood/isochrone-isodistance-with-google-maps">Github Project</a>)</h3>
+				<h4>From the Eiffel Tower:</h4>
+				<form action="index.html" method="get" onsubmit="return testIsochrone();">
+					<div class="form-group">
+						<div class="col-xs-12 row">
+							<div class="col-xs-6">
+								<div class="row">
+									<div class="col-xs-2"></div>
+									<div class="col-xs-5"><input type="radio" name="type" id="typeDuration" checked="checked"/> duration (isochrone)</div>
+									<div class="col-xs-2"><input type="text" name="value" id="durationValue" value="300" size="5" class="form-control"/></div>
+									<div class="col-xs-3">seconds</div>
+								</div>
+								<div class="row">
+									<div class="col-xs-2">- or -</div>
+									<div class="col-xs-5"><input type="radio" name="type"/> distance (isodistance)</div>
+									<div class="col-xs-2"><input type="text" name="value" id="distanceValue" value="5" size="5" class="form-control"/></div>
+									<div class="col-xs-3">kilometers</div>
+								</div>
+							</div>
+							<div class="col-xs-6">
+								<div class="col-xs-6">
+									<input type="submit" value="Compute the polygon!" class="form-control"/>
+								</div>
+								<div class="col-xs-6">
+									<div class="alert alert-warning" id="computing">Computing...</div>
+								</div>
+							</div>
+						</div>
+						<div class="col-xs-12">
+							<div class="col-xs-1">Mode</div>
+							<div class="col-xs-9">
+								<label><input type="radio" name="mode" id="modeWalking" checked="checked"/> walking</label>
+								<label><input type="radio" name="mode" id="modeBicycling"/> bicycling</label>
+								<label><input type="radio" name="mode" id="modeDriving"/> driving</label>
+								<label><input type="radio" name="mode"/> transit</label>
+							</div>
+						</div>
+					</div>
+				</form>
+			</div>
+			<div class="col-xs-12">
+				<div id="theMap"></div>
+			</div>
+		</div>
 		<script type="text/javascript">
 			isochrone.load({
 				map: 'theMap',
 				key: 'AIzaSyDg024r1hQ-9YU570Ms4iOGRC5QSX-z_Bo', // Do change the key: it won't work on your domain anyway :-)
 				debug: true
 			});
-			function testIsochrone(parameters)
+			var polygon = false;
+			function testIsochrone()
 			{
-				parameters = parameters || {type: 'duration', value: 5 * 60};
-				parameters.lat = 48.858254;
-				parameters.lng = 2.294563;
-				parameters.mode = 'walking';
-				parameters.cycles = 5;
-				parameters.slices = 16;
-				parameters.callback = isochrone.addPolygon;
+				document.getElementById('computing').style.display = 'block';
+				if (polygon)
+				{
+					polygon.setMap(null);
+					polygon = null;
+				}
+				var parameters = {
+					lat: 48.858254,
+					lng: 2.294563,
+					cycles: 8,
+					slices: 16,
+					type: document.getElementById('typeDuration').checked ? 'duration' : 'distance',
+					value: parseFloat(document.getElementById(document.getElementById('typeDuration').checked ? 'durationValue' : 'distanceValue').value.replace(',', '.')),
+					mode: document.getElementById('modeWalking').checked ? 'walking' : (document.getElementById('modeBicycling').checked ? 'bicycling' : (document.getElementById('modeDriving').checked ? 'driving' : 'transit')),
+					callback: function (points)
+					{
+						polygon = isochrone.addPolygon(points);
+						document.getElementById('computing').style.display = 'none';
+					}
+				};
 				isochrone.compute(parameters);
+				return false;
 			}
-			setTimeout(testIsochrone, 1000);
 		</script>
 	</body>
 </html>
