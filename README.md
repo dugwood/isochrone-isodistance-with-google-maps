@@ -34,6 +34,7 @@ Parameters:
  - zoom: (integer) if key is provided: default zoom of the map
  - lat: (float) if key is provided: default latitude of the map
  - lng: (float) if key is provided: default longitude of the map
+ - callback: (function) function launched when isochrone and Google Maps are ready
  - debug: (boolean)	set to true if you want to see errors in the Debug Console, else it will fail silently
 
 ## Usage

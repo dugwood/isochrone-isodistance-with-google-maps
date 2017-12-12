@@ -9,6 +9,7 @@ var isochrone = {
 	},
 	service: false,
 	ready: false,
+	callback: false,
 	debug: false,
 	computation: {
 		slices: 0,
@@ -42,6 +43,7 @@ var isochrone = {
 		this.map.zoom = parameters.zoom || 14;
 		this.map.lat = parameters.lat || 48.858254;
 		this.map.lng = parameters.lng || 2.294563;
+		this.callback = parameters.callback || false;
 		this.debug = parameters.debug || false;
 		if ((typeof parameters.key) !== 'undefined')
 		{
@@ -68,6 +70,10 @@ var isochrone = {
 		});
 		this.service = new google.maps.DistanceMatrixService();
 		this.ready = true;
+		if (this.callback)
+		{
+			this.callback(this);
+		}
 	},
 	compute: function (parameters)
 	{
