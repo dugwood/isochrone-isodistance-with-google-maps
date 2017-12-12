@@ -1,14 +1,9 @@
-# this is a work in progress, nothing is really working for now :-)
-# first functional release soon enough! Click on «Watch» in the upper right corner
-
-
-
 # Isochrone and Isodistance with Google Maps API
 
 Inspired by https://github.com/sandropaganotti-zz/isochrone-with-google-map and https://github.com/lydonchandra/isochrone-with-google-map
 
 Isochrone is a polygon representing how far you would go from a single point in every direction, following each road in a given timeframe. It's the best way to find out where you should live if you want to be «at most 5 minutes away from a tube station».
-Isodistance is similar, but ignores time taken for traveling. For example by car you would go faster on highways, but with isodistance highways and sidewalks are the same.
+Isodistance is similar, but ignores duration taken for traveling. For example by car you would go faster on highways, but with isodistance highways and sidewalks are the same.
 
 - isochrone (same duration) or isodistance (same distance) library
 - polygon definition: number of slices, number of cycles to make the precision better
@@ -46,7 +41,8 @@ Parameters:
 isochrone.compute({
 	lat: 48.860901,
 	lng: 2.307405,
-	time: 10 * 60,
+	type: 'duration,
+	value: 10 * 60,
 	mode: 'walking',
 	callback: isochrone.addPolygon
 });
@@ -54,12 +50,12 @@ isochrone.compute({
 Parameters:
  - lat: (float) latitude of origin. Mandatory.
  - lng: (float) longitude of origin. Mandatory.
- - time: (integer) maximum time to reach another point, in seconds. Mandatory, exclusive with «distance».
-   - examples:
+ - type: (string) either 'distance' (isodistance) or 'duration' (isoduration). Mandatory.
+ - value (float) maximum duration (in seconds) or distance (in miles or kilometers, see «system») to reach another point. Mandatory.
+   - examples for type=duration:
      - 30 seconds: 30
      - 10 minutes: 10 * 60 or 600
      - 1 hour and a half: 1h * 60 * 60 + 30min * 60, or 1 * 3600 + 30 * 60, or 5400
- - distance: (float) maximum distance to reach another point, in miles or kilometers (see «system»). Mandatory, exclusive with «time».
  - mode: (string) mode used to rely the dots, either walking, bicycling, driving or transit. Mandatory.
  - callback: (function) function to call with the final polygon values. Mandatory.
  - system: (string) system to use, either 'imperial' (in miles) or 'metric' (in kilometers). Defaults to «metric» if omitted.

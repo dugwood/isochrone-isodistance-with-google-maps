@@ -12,14 +12,15 @@ var isochrone = {
 	computation: {
 		slices: 0,
 		cycles: 0,
+		cycle: 0,
 		lat: 0,
 		lng: 0,
-		time: 0,
-		distance: 0,
+		type: '',
+		value: 0,
 		mode: '',
 		system: '',
 		callback: false,
-		points: []
+		positions: []
 	},
 	log: function (text)
 	{
@@ -79,6 +80,7 @@ var isochrone = {
 			this.log('Wrong value for slices: between 2 and 25');
 			return false;
 		}
+		this.computation.cycle = 0;
 		this.computation.cycles = parseInt(parameters.cycles || 10);
 		if (this.computation.cycles < 2 || this.computation.cycles > 50)
 		{
@@ -104,51 +106,132 @@ var isochrone = {
 			return false;
 		}
 		this.computation.mode = parameters.mode.toUpperCase();
-		if (!parameters.time && !parameters.distance)
+		if (!parameters.type || parameters.type !== 'duration' && parameters.type !== 'distance')
 		{
-			this.log('Missing either time or distance');
+			this.log('Missing type or invalid type');
 			return false;
 		}
-		this.computation.time = parseInt(parameters.time || 0);
-		this.computation.distance = parseFloat(parameters.distance || 0);
-		if (this.computation.time && this.computation.distance)
+		this.computation.type = parameters.type;
+		this.computation.value = parseFloat(parameters.value || 0);
+		if (!this.computation.value)
 		{
-			this.log('Both time and distance are set');
+			this.log('Wrong value (must be greater than zero');
 			return false;
 		}
 		this.computation.system = parameters.system && parameters.system === 'imperial' ? google.maps.UnitSystem.IMPERIAL : google.maps.UnitSystem.METRIC;
 
 		/* Cut the circle in «slices» */
 		new google.maps.Marker({position: {lat: this.computation.lat, lng: this.computation.lng}, map: this.map.map});
-		var radians,
-				latitude,
-				longitude,
-				delta = 0.01,
-				destinations = [];
+		this.computation.positions = [];
 		for (var s = 0; s < this.computation.slices; s++)
 		{
-			radians = 2 * Math.PI * s / this.computation.slices;
-			latitude = this.computation.lat + delta * Math.cos(radians);
-			longitude = this.computation.lng + delta * Math.sin(radians);
-			new google.maps.Marker({position: {lat: latitude, lng: longitude}, map: this.map.map});
-			destinations.push(new google.maps.LatLng(latitude, longitude));
+			this.computation.positions.push({
+				radians: 2 * Math.PI * s / this.computation.slices,
+				min: {
+					delta: 0,
+					value: 0
+				},
+				max: {
+					delta: 0,
+					value: 0
+				},
+				delta: 0.01,
+				lat: 0,
+				lng: 0,
+				duration: 0,
+				distance: 0,
+				found: false
+			});
+		}
+		this.cycle();
+	},
+	cycle: function ()
+	{
+		var computation = isochrone.computation;
+		if (computation.cycle++ >= computation.cycles)
+		{
+			computation.callback(computation.positions);
+			return false;
+		}
+		var p = 0, position, destinations = [];
+		for (; p < computation.positions.length; p++)
+		{
+			position = computation.positions[p];
+			if (!position.found)
+			{
+				position.lat = computation.lat + position.delta * Math.cos(position.radians);
+				position.lng = computation.lng + position.delta * Math.sin(position.radians);
+				//new google.maps.Marker({position: {lat: position.lat, lng: position.lng}, map: this.map.map});
+				destinations.push(new google.maps.LatLng(position.lat, position.lng));
+			}
 		}
 		this.service.getDistanceMatrix({
-			origins: [new google.maps.LatLng(this.computation.lat, this.computation.lng)],
+			origins: [new google.maps.LatLng(computation.lat, computation.lng)],
 			destinations: destinations,
-			travelMode: this.computation.mode,
-			unitSystem: this.computation.system,
+			travelMode: computation.mode,
+			unitSystem: computation.system,
 		}, function (data, result)
 		{
-			if (result === 'OK' && data && data.rows)
+			if (result !== 'OK' || (typeof data.rows[0].elements) === 'undefined')
 			{
-				console.log(data.rows);
+				computation.callback(computation.positions);
+				return false;
 			}
-		});
+			for (var i = 0; i < data.rows[0].elements.length; i++)
+			{
+				var d = data.rows[0].elements[i], value = 0, position = computation.positions[i];
+				if (d.status === 'OK')
+				{
+					value = parseFloat(d[computation.type].value);
+					if (value < computation.value && // value is lower than expected
+							(!position.min.delta || // no minimum for now
+									position.delta > position.min.delta && value > position.min.value)) // value and delta are higher than minimum
+					{
+						position.min.delta = position.delta;
+						position.min.value = value;
+					}
+					if (value > computation.value && // value is higher than expected
+							(!position.max.delta || // no maximum for now
+									position.delta < position.max.delta && value < position.max.value)) // value and delta are lower than maximum
+					{
+						position.max.delta = position.delta;
+						position.max.value = value;
+					}
+					/* Perfect match */
+					if (value === computation.value)
+					{
+						position.found = true;
+					}
+					else
+					{
+						/* Recompute delta */
+						if (!position.min.delta)
+						{
+							/* Position is relative to the max found: apply «règle de trois» (Cross-multiplication) */
+							position.delta = position.max.delta * computation.value / position.max.value;
+						}
+						else if (!position.max.delta)
+						{
+							/* Position is relative to the min found: apply «règle de trois» (Cross-multiplication) */
+							position.delta = position.min.delta * computation.value / position.min.value;
+						}
+						else
+						{
+							/* Use mean between min and max */
+							position.delta = (position.min.delta + position.max.delta) / 2;
+						}
+					}
+				}
+			}
+			isochrone.cycle();
+		}
+		);
 	},
 	addPolygon: function (points)
 	{
-
+		points.push(points[0]); // close the line
+		var zone = new google.maps.Polygon({path: points});
+		zone.setMap(isochrone.map.map);
 	}
 };
 
