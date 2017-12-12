@@ -164,7 +164,7 @@ var isochrone = {
 			{
 				position.lat = computation.lat + position.delta * Math.cos(position.radians);
 				position.lng = computation.lng + position.delta * Math.sin(position.radians);
-				new google.maps.Marker({position: {lat: position.lat, lng: position.lng}, label: '' + computation.cycle, map: this.map.map});
+				//new google.maps.Marker({position: {lat: position.lat, lng: position.lng}, label: '' + computation.cycle, map: this.map.map});
 				destinations.push(new google.maps.LatLng(position.lat, position.lng));
 				relations.push(p);
 			}
