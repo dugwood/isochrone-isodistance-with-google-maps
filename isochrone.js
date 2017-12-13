@@ -206,6 +206,7 @@ var isochrone = {
 			{
 				if (result === 'OVER_QUOTA_LIMIT' && computation.errors++ <= 10)
 				{
+					computation.cycle--;
 					isochrone.requests = Math.max(0.5, isochrone.requests - 0.5);
 					setTimeout(isochrone.cycle, 2000);
 					return false;
