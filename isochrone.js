@@ -7,6 +7,7 @@ var isochrone = {
 		lat: 0,
 		lng: 0
 	},
+	requests: 0,
 	service: false,
 	ready: false,
 	callback: false,
@@ -24,6 +25,20 @@ var isochrone = {
 		precision: 0,
 		callback: false,
 		positions: []
+	},
+	radius: {// These are approximate values, so that the first point is not that far from the final value
+		duration: {
+			walking: 11,
+			bicycling: 30,
+			driving: 60,
+			transit: 10
+		},
+		distance: {
+			walking: 9,
+			bicycling: 8,
+			driving: 7,
+			transit: 7
+		}
 	},
 	log: function (text)
 	{
@@ -44,6 +59,7 @@ var isochrone = {
 		this.map.lat = parameters.lat || 48.858254;
 		this.map.lng = parameters.lng || 2.294563;
 		this.callback = parameters.callback || false;
+		this.requests = parseFloat(parameters.requests || 2);
 		this.debug = parameters.debug || false;
 		if ((typeof parameters.key) !== 'undefined')
 		{
@@ -77,74 +93,73 @@ var isochrone = {
 	},
 	compute: function (parameters)
 	{
+		if (!parameters.callback)
+		{
+			this.computation.callback = function ()
+			{};
+			return this.computationCallback('KO', 'Missing callback');
+		}
+		this.computation.callback = parameters.callback;
 		if (!this.ready)
 		{
-			this.log('Not ready, call init() or wait for init to be callbacked');
-			return false;
+			return this.computationCallback('KO', 'Not ready, call init() or wait for init to be callbacked');
 		}
 		this.computation.slices = parseInt(parameters.slices || 8);
-		if (this.computation.slices < 2 || this.computation.slices > 25)
+		if (this.computation.slices < 4 || this.computation.slices > 25)
 		{
-			this.log('Wrong value for slices: between 2 and 25');
-			return false;
+			return this.computationCallback('KO', 'Wrong value for slices: between 2 and 25');
 		}
 		this.computation.cycle = 0;
 		this.computation.cycles = parseInt(parameters.cycles || 10);
 		if (this.computation.cycles < 2 || this.computation.cycles > 50)
 		{
-			this.log('Wrong value for cycles: between 2 and 50');
-			return false;
+			return this.computationCallback('KO', 'Wrong value for cycles: between 2 and 50');
 		}
 		if (!parameters.lat || !parameters.lng)
 		{
-			this.log('Missing lat and lng parameters');
-			return false;
+			return this.computationCallback('KO', 'Missing lat and lng parameters');
 		}
 		this.computation.lat = parameters.lat;
 		this.computation.lng = parameters.lng;
-		if (!parameters.callback)
-		{
-			this.log('Missing callback');
-			return false;
-		}
-		this.computation.callback = parameters.callback;
 		if (!parameters.mode || !parameters.mode.match(/^(walking|bicycling|driving|transit)$/))
 		{
-			this.log('Missing mode or invalid mode');
-			return false;
+			return this.computationCallback('KO', 'Missing mode or invalid mode');
 		}
 		this.computation.mode = parameters.mode.toUpperCase();
 		if (!parameters.type || parameters.type !== 'duration' && parameters.type !== 'distance')
 		{
-			this.log('Missing type or invalid type');
-			return false;
+			return this.computationCallback('KO', 'Missing type or invalid type');
 		}
 		this.computation.type = parameters.type;
 		this.computation.value = parseFloat(parameters.value || 0);
 		if (!this.computation.value)
 		{
-			this.log('Wrong value (must be greater than zero');
-			return false;
+			return this.computationCallback('KO', 'Wrong value (must be greater than zero');
 		}
 		this.computation.precision = parseInt(parameters.precision || 5) / 100;
 		this.computation.system = parameters.system && parameters.system === 'imperial' ? google.maps.UnitSystem.IMPERIAL : google.maps.UnitSystem.METRIC;
 
 		/* Cut the circle in «slices» */
-		//new google.maps.Marker({position: {lat: this.computation.lat, lng: this.computation.lng}, map: this.map.map});
 		this.computation.positions = [];
+		var radius = this.radius[this.computation.type][this.computation.mode] * this.computation.value / 1000000;
+		if (this.computation.system === 'imperial')
+		{
+			radius *= 0.9144;
+		}
 		for (var s = 0; s < this.computation.slices; s++)
 		{
 			this.computation.positions.push({
 				radians: 2 * Math.PI * s / this.computation.slices,
 				min: {
-					delta: 0,
+					radius: 0,
 					value: 0
 				},
 				max: {
-					delta: 0,
+					radius: 0,
 					value: 0
 				},
-				delta: 0.01,
+				/* Radius is really an approximate value */
+				radius: 0.01,
 				lat: 0,
 				lng: 0,
 				duration: 0,
@@ -159,8 +174,7 @@ var isochrone = {
 		var computation = isochrone.computation;
 		if (computation.cycle++ >= computation.cycles)
 		{
-			computation.callback(computation.positions);
-			return true;
+			return isochrone.computationCallback('OK');
 		}
 		var p = 0, position, destinations = [], relations = [];
 		for (; p < computation.positions.length; p++)
@@ -168,85 +182,102 @@ var isochrone = {
 			position = computation.positions[p];
 			if (!position.found)
 			{
-				position.lat = computation.lat + position.delta * Math.cos(position.radians);
-				position.lng = computation.lng + position.delta * Math.sin(position.radians);
-				//new google.maps.Marker({position: {lat: position.lat, lng: position.lng}, label: '' + computation.cycle, map: this.map.map});
+				position.lat = computation.lat + position.radius * Math.cos(position.radians);
+				position.lng = computation.lng + position.radius * Math.sin(position.radians);
+				//new google.maps.Marker({position: {lat: position.lat, lng: position.lng}, label: '' + computation.cycle, map: isochrone.map.map});
 				destinations.push(new google.maps.LatLng(position.lat, position.lng));
 				relations.push(p);
 			}
 		}
 		if (!destinations.length)
 		{
-			computation.callback(computation.positions);
-			return true;
+			return isochrone.computationCallback('OK');
 		}
-		this.service.getDistanceMatrix({
+		isochrone.service.getDistanceMatrix({
 			origins: [new google.maps.LatLng(computation.lat, computation.lng)],
 			destinations: destinations,
 			travelMode: computation.mode,
 			unitSystem: computation.system,
 		}, function (data, result)
 		{
-			if (result !== 'OK' || (typeof data.rows[0].elements) === 'undefined')
+			if (result !== 'OK')
 			{
-				computation.callback(computation.positions);
-				return false;
+				return isochrone.computationCallback(result);
+			}
+			if ((typeof data.rows[0].elements) === 'undefined' || data.rows[0].elements.length !== destinations.length)
+			{
+				return isochrone.computationCallback('LENGTH');
 			}
 			for (var i = 0; i < data.rows[0].elements.length; i++)
 			{
-				var d = data.rows[0].elements[i], value = 0, position = computation.positions[relations[i]];
-				if (d.status === 'OK')
+				var d = data.rows[0].elements[i],
+						value = 0,
+						position = computation.positions[relations[i]],
+						minWeight = 0,
+						maxWeight = 0;
+				if (d.status !== 'OK')
 				{
-					value = parseFloat(d[computation.type].value);
-					if (value < computation.value && // value is lower than expected
-							(!position.min.delta || // no minimum for now
-									position.delta > position.min.delta && value > position.min.value)) // value and delta are higher than minimum
+					continue;
+				}
+				value = parseFloat(d[computation.type].value);
+				if (value < computation.value && // value is lower than expected
+						(!position.min.radius || // no minimum for now
+								position.radius > position.min.radius && value > position.min.value)) // value and radius are higher than minimum
+				{
+					position.min.radius = position.radius;
+					position.min.value = value;
+				}
+				if (value > computation.value && // value is higher than expected
+						(!position.max.radius || // no maximum for now
+								position.radius < position.max.radius && value < position.max.value)) // value and radius are lower than maximum
+				{
+					position.max.radius = position.radius;
+					position.max.value = value;
+				}
+				/* Accepted match */
+				if (Math.abs(value - computation.value) / computation.value < computation.precision)
+				{
+					position.found = true;
+				}
+				else
+				{
+					/* Recompute radius */
+					if (!position.min.radius)
 					{
-						position.min.delta = position.delta;
-						position.min.value = value;
+						/* Position is relative to the max found: apply «règle de trois» (Cross-multiplication) */
+						position.radius = position.max.radius * computation.value / position.max.value;
 					}
-					if (value > computation.value && // value is higher than expected
-							(!position.max.delta || // no maximum for now
-									position.delta < position.max.delta && value < position.max.value)) // value and delta are lower than maximum
+					else if (!position.max.radius)
 					{
-						position.max.delta = position.delta;
-						position.max.value = value;
-					}
-					/* Accepted match */
-					if (Math.abs(value - computation.value) / computation.value < computation.precision)
-					{
-						position.found = true;
+						/* Position is relative to the min found: apply «règle de trois» (Cross-multiplication) */
+						position.radius = position.min.radius * computation.value / position.min.value;
 					}
 					else
 					{
-						/* Recompute delta */
-						if (!position.min.delta)
-						{
-							/* Position is relative to the max found: apply «règle de trois» (Cross-multiplication) */
-							position.delta = position.max.delta * computation.value / position.max.value;
-						}
-						else if (!position.max.delta)
-						{
-							/* Position is relative to the min found: apply «règle de trois» (Cross-multiplication) */
-							position.delta = position.min.delta * computation.value / position.min.value;
-						}
-						else
-						{
-							/* Use mean between min and max */
-							position.delta = (position.min.delta + position.max.delta) / 2;
-						}
+						/* Use «moyenne pondérée» (weighted arithmetic mean) */
+						/* weights are the difference between expected value and min/max values, inversed (less the distance is best) */
+						minWeight = 1 / Math.abs(position.min.value - computation.value);
+						maxWeight = 1 / Math.abs(position.max.value - computation.value);
+						position.radius = (position.min.radius * minWeight + position.max.radius * maxWeight) / (minWeight + maxWeight);
 					}
 				}
 			}
-			isochrone.cycle();
-		}
-		);
+			setTimeout(isochrone.cycle, parseInt(1000 / isochrone.requests));
+		});
 	},
-	addPolygon: function (points)
+	computationCallback: function (status, message)
 	{
-		points.push(points[0]); // close the polygon
-		var polygon = new google.maps.Polygon({path: points});
-		polygon.setMap(isochrone.map.map);
-		return polygon;
+		message = message || '';
+		if (message)
+		{
+			isochrone.log(message);
+		}
+		var computation = isochrone.computation;
+		if (computation.positions.length)
+		{
+			computation.positions.push(computation.positions[0]); // Close the polygon for easier drawing
+		}
+		computation.callback(status, computation.positions);
+		return false;
 	}
 };

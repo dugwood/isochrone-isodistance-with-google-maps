@@ -34,6 +34,7 @@ Parameters:
  - zoom: (integer) if key is provided: default zoom of the map
  - lat: (float) if key is provided: default latitude of the map
  - lng: (float) if key is provided: default longitude of the map
+ - requests: (float) number of requests per second to [Google Maps API](https://developers.google.com/maps/documentation/javascript/distancematrix#quotas): maximum is 100 elements/s, about 25 elements/request, up to 4 should be good (if you don't have multiple users!). Defaults to 2.
  - callback: (function) function launched when isochrone and Google Maps are ready
  - debug: (boolean)	set to true if you want to see errors in the Debug Console, else it will fail silently
 
@@ -45,20 +46,42 @@ isochrone.compute({
 	type: 'duration',
 	value: 10 * 60,
 	mode: 'walking',
-	callback: isochrone.addPolygon
+	callback: myCallback
 });
 ```
 Parameters:
  - lat: (float) latitude of origin. Mandatory.
  - lng: (float) longitude of origin. Mandatory.
  - type: (string) either 'distance' (isodistance) or 'duration' (isoduration). Mandatory.
- - value (float) maximum duration (in seconds) or distance (in miles or kilometers, see «system») to reach another point. Mandatory.
+ - value (float) maximum duration (in seconds) or distance (in meters or yards, see «system») to reach another point. Mandatory.
    - examples for type «duration»:
      - 30 seconds: 30
-     - 10 minutes: 10 * 60 or 600
-     - 1 hour and a half: 1h * 60 * 60 + 30min * 60, or 1 * 3600 + 30 * 60, or 5400
+     - 10 minutes: 10 * 60 = 600
+     - 1 hour and a half: 1h * 60 * 60 + 30min * 60 = 1 * 3600 + 30 * 60 = 5400
+   - examples for type «distance», in metric system (meters, kilometers):
+     - 500m: 500
+     - 1km: 1 * 1000 = 1000
+     - 5.5km: 5 * 1000 + 500 = 5500
+   - examples for type «distance», in imperial system (yards, miles):
+     - 500 yards: 500
+     - 1mi: 1 * 1760 = 1760
+     - 5.5mi: 5.5 * 1760 = 9680
  - mode: (string) mode used to rely the dots, either walking, bicycling, driving or transit. Mandatory.
  - callback: (function) function to call with the final polygon values. Mandatory.
+   - function's arguments:
+     - status: (string) either the [Google Maps API error codes](https://developers.google.com/maps/documentation/javascript/distancematrix#distance_matrix_status_codes) including the OK, or KO (bad configuration), LENGTH (returned array by Google API is not the correct length).
+     - points: (array) array of objects, including «lat and lng» properties so that you can send it directly to [Google Maps polygon](https://developers.google.com/maps/documentation/javascript/shapes#polygon_add) in the «paths» property.
+     - example :
+       ```javascript
+       var myCallback = function (status, points)
+       {
+       	if (status === 'OK')
+       	{
+       		var polygon = new google.maps.Polygon({path: points});
+       		polygon.setMap(isochrone.map.map);
+       	}
+       };
+       ```
  - system: (string) system to use, either 'imperial' (in miles) or 'metric' (in kilometers). Defaults to «metric» if omitted.
  - slices: (integer) number of polygon slices to compute. 4 slices means testing N/E/S/W (polygon cut in 4), 8 means testing N/NE/E/SE/S/SW/W/NW (polygon cut in 8). Defaults to 8, best is probably 16, maximum is 25 (hard limit of Google API, as we request all directions in one call to limit usage).
  - cycles: (integer) number of cycles to narrow the polygon down. The higher value, the better, but this will equals the number of API calls, so you may want to keep it low because of [API restrictions](https://developers.google.com/maps/documentation/javascript/distancematrix#UsageLimits) and to get faster results. Defaults to 10.

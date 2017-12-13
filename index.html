@@ -9,10 +9,8 @@
 				width:100%;
 				height:600px;
 			}
-			#computing {
-				display:none;
-			}
 			.alert {
+				display:none;
 				margin:0;
 			}
 		</style>
@@ -28,14 +26,14 @@
 								<div class="clearfix">
 									<div class="col-xs-2"></div>
 									<div class="col-xs-5"><label><input type="radio" name="type" id="typeDuration" checked="checked"/> duration (isochrone)</label></div>
-									<div class="col-xs-2"><input type="text" name="value" id="durationValue" value="300" size="5" class="form-control"/></div>
-									<div class="col-xs-3">seconds</div>
+									<div class="col-xs-3"><input type="text" name="value" id="durationValue" value="300" size="7" class="form-control"/></div>
+									<div class="col-xs-2">seconds</div>
 								</div>
 								<div class="clearfix">
 									<div class="col-xs-2">- or -</div>
 									<div class="col-xs-5"><label><input type="radio" name="type"/> distance (isodistance)</label></div>
-									<div class="col-xs-2"><input type="text" name="value" id="distanceValue" value="5" size="5" class="form-control"/></div>
-									<div class="col-xs-3">kilometers</div>
+									<div class="col-xs-3"><input type="text" name="value" id="distanceValue" value="1000" size="7" class="form-control"/></div>
+									<div class="col-xs-2">meters</div>
 								</div>
 							</div>
 							<div class="col-xs-6">
@@ -44,6 +42,7 @@
 								</div>
 								<div class="col-xs-6">
 									<div class="alert alert-warning" id="computing">Computing...</div>
+									<div class="alert alert-danger" id="error">Error...</div>
 								</div>
 							</div>
 						</div>
@@ -96,6 +95,7 @@
 			/* Allow to click on the map */
 			function testIsochrone()
 			{
+				document.getElementById('error').style.display = 'none';
 				document.getElementById('computing').style.display = 'block';
 				if (polygon)
 				{
@@ -110,10 +110,19 @@
 					type: document.getElementById('typeDuration').checked ? 'duration' : 'distance',
 					value: parseFloat(document.getElementById(document.getElementById('typeDuration').checked ? 'durationValue' : 'distanceValue').value.replace(',', '.')),
 					mode: document.getElementById('modeWalking').checked ? 'walking' : (document.getElementById('modeBicycling').checked ? 'bicycling' : (document.getElementById('modeDriving').checked ? 'driving' : 'transit')),
-					callback: function (points)
+					callback: function (status, points)
 					{
-						polygon = isochrone.addPolygon(points);
 						document.getElementById('computing').style.display = 'none';
+						if (status === 'OK')
+						{
+							polygon = new google.maps.Polygon({path: points});
+							polygon.setMap(isochrone.map.map);
+						}
+						else
+						{
+							document.getElementById('error').innerHTML = status;
+							document.getElementById('error').style.display = 'block';
+						}
 					}
 				});
 				return false;
