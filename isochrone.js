@@ -13,6 +13,7 @@ var isochrone = {
 	callback: false,
 	debug: false,
 	computation: {
+		errors: 0,
 		slices: 0,
 		cycles: 0,
 		cycle: 0,
@@ -99,6 +100,7 @@ var isochrone = {
 			{};
 			return this.computationCallback('KO', 'Missing callback');
 		}
+		this.computation.errors = 0;
 		this.computation.callback = parameters.callback;
 		if (!this.ready)
 		{
@@ -202,6 +204,12 @@ var isochrone = {
 		{
 			if (result !== 'OK')
 			{
+				if (result === 'OVER_QUOTA_LIMIT' && computation.errors++ <= 10)
+				{
+					isochrone.requests = Math.max(0.5, isochrone.requests - 0.5);
+					setTimeout(isochrone.cycle, 2000);
+					return false;
+				}
 				return isochrone.computationCallback(result);
 			}
 			if ((typeof data.rows[0].elements) === 'undefined' || data.rows[0].elements.length !== destinations.length)
