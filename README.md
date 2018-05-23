@@ -9,7 +9,11 @@ Isodistance is similar, but ignores duration taken for traveling. For example by
 - polygon definition: number of slices, number of cycles to make the precision better
 - export polygons' points for future use (avoid computing everything every time)
 
-# Demo
+# Example
+This is the isochrone of walking for 15 minutes from the Eiffel Tower in 16 directions:
+![Eiffel Tower isochrone](https://www.dugwood.com/isochrone-screenshot.png?1520424890)
+
+# Live Demo
 
 https://isochrone.dugwood.com/index.html
 
